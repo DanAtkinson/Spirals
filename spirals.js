@@ -14,9 +14,8 @@ var requestAnimFrame =
     context = canvas.getContext("2d"),
     cx, cy, maxR,
     angStep = 0,
-    speed = 0.00025,
+    speed = 0.00005,
     back = '000',
-    spirals = 'F00',
     cssNames = [
         ["AliceBlue", { Hex: "F0F8FF", Red: 240, Green: 248, Blue: 255}],
         ["AntiqueWhite", { Hex: "FAEBD7", Red: 250, Green: 235, Blue: 215}],
@@ -163,8 +162,9 @@ var requestAnimFrame =
 
 (function () {
     window.addEventListener('resize', resize, false);
+    window.addEventListener('keydown', keydown, false);
     canvas.addEventListener('click', click, false);
-    window.location.hash = window.location.hash || "speed=" + speed + "&back=" + back + "&spirals=" + spirals;
+    window.location.hash = window.location.hash || "speed=" + speed + "&back=" + back;
 
     parseHashParams();
 }());
@@ -172,38 +172,81 @@ var requestAnimFrame =
 function parseHashParams() {
     var hashParams = getHashParams();
     speed = parseFloat(hashParams.speed) || 0.00025;
-    back = parseColor(hashParams.back);
-    spirals = parseColor(hashParams.spirals);
+    back = parseColour(hashParams.back);
 
-    resize();
-    animate();
+    if (typeof back !== "undefined") {
+        resize();
+        animate();
+    }
 }
 
 function click() {
-    angStep = 0;
+    //angStep = 0;
     speed = Number((speed + 0.00005).toFixed(6));
-    window.location.hash = "speed=" + speed + "&back=" + back + "&spirals=" + spirals;
+    window.location.hash = "speed=" + speed + "&back=" + rgbToHex(back);
+}
+
+function rgbToHex(rgbVal) {
+    return componentToHex(rgbVal[0]) + componentToHex(rgbVal[1]) + componentToHex(rgbVal[2]);
+}
+
+function componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+}
+
+function convertToRGBA(rgbVal, a) {
+    return "rgba(" + rgbVal[0] + ", " + rgbVal[1] + ", " + rgbVal[2] + ", " + (a || 1) + ")";
+}
+
+function keydown(e) {
+    switch (e.which) {
+        case 109://-
+        case 189://-
+            //console.log("-");
+            //angStep = 0;
+            speed = Number((speed - 0.00005).toFixed(6));
+            window.location.hash = "speed=" + speed + "&back=" + rgbToHex(back);
+            break;
+        case 107://+
+        case 187://+
+            //console.log("+");
+            //angStep = 0;
+            speed = Number((speed + 0.00005).toFixed(6));
+            window.location.hash = "speed=" + speed + "&back=" + rgbToHex(back);
+            break;
+        case 32://space
+            break;
+        case 83://s
+            break;
+        case 66://b
+            break;
+        case 16://shift
+        case 17://lctrl
+        case 18://alt
+            break;
+        default:
+            console.log(e.which);
+            break;
+    }
 }
 
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
+    //angStep = 0;
+    
     cx = canvas.width / 2;
     cy = canvas.height / 2;
     maxR = Math.sqrt(cx*cx + cy*cy);
 }
 
-function fillCircle(x, y, r) {
-    context.beginPath();
-    context.arc(x, y, r, 0, 2 * Math.PI, true);
-    context.fill();
-}
-
 function animate() {
     requestAnimFrame(animate);
 
-    context.fillStyle = "rgba(" + back[0] + ", " + back[1] + ", " + back[2] + ", 1)";//'black';
+    //Background colour
+    context.fillStyle = convertToRGBA(back, 1);
     context.fillRect(0, 0, canvas.width, canvas.height);
 
     angStep += speed;
@@ -211,23 +254,45 @@ function animate() {
         angStep -= 2 * Math.PI;
     }
 
-    drawSpiral(angStep);
-}
-
-function drawSpiral(angStep) {
-    context.fillStyle = "rgba(" + spirals[0] + ", " + spirals[1] + ", " + spirals[2] + ", 1)";//'#F00';
-
     var ang = 0, r = 0;
 
     do {
         var x = (r * Math.cos(ang) + cx);
         var y = (r * Math.sin(ang) + cy);
         var R = Math.sqrt(r / 2);
-        fillCircle(x, y, R);
 
+        //Fill the circle.
+        context.beginPath();
+        context.arc(x, y, R, 0, 2 * Math.PI, true);
+        context.fillStyle = '#' + Math.floor(Math.random() * 16777215).toString(16);
+        context.fill();
+
+        //Change the angle step.
         ang += angStep;
-        r += 1.3;
+        //r = r * 1.1;
+        r += 0.9;
     } while (r <= maxR + R);
+}
+
+function incrementArray(arr) {
+    if (arr[2] >= 255) {
+        arr[2] = 0;
+        arr[1]++;
+    } else {
+        arr[2]++;
+        return arr;
+    }
+
+    if (arr[1] >= 255) {
+        arr[1] = 0;
+        arr[0]++;
+    }
+
+    if (arr[0] >= 255) {
+        arr[0] = 0;
+    }
+
+    return arr;
 }
 
 function getHashParams() {
@@ -245,7 +310,7 @@ function getHashParams() {
     return hashParams;
 }
 
-function parseColor(input) {
+function parseColour(input) {
     var m;
 
     //Numeric values are easier to parse than names, so we do those first.
